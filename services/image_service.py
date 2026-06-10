@@ -1,9 +1,14 @@
 import io
+import time                          # ← ADDED for retry sleep
 import urllib.request
 import urllib.parse
-
+import urllib.error                  # ← ADDED for specific error catching
 from PIL import Image, ImageDraw, ImageFont, ImageEnhance
 
+# ── Retry config ───────────────────────────────────────────────────────
+MAX_RETRIES   = 3    # total attempts
+RETRY_DELAY   = 5    # seconds between attempts
+FETCH_TIMEOUT = 60   # seconds per attempt (same as before)
 
 def build_image_url(prompt, w, h, seed):
     encoded = urllib.parse.quote(prompt)
@@ -12,12 +17,27 @@ def build_image_url(prompt, w, h, seed):
         f"?width={w}&height={h}&seed={seed}&nologo=true&enhance=true"
     )
 
-
 def fetch_image_bytes(image_url):
-    req = urllib.request.Request(image_url, headers={"User-Agent": "Mozilla/5.0"})
-    with urllib.request.urlopen(req, timeout=60) as resp:
-        return resp.read()
-
+    """
+    Fetch image bytes from Pollinations with automatic retry.
+    Tries up to MAX_RETRIES times with RETRY_DELAY seconds between each.
+    Raises the last exception if all attempts fail.
+    """
+    last_error = None
+    for attempt in range(1, MAX_RETRIES + 1):
+        try:
+            req = urllib.request.Request(
+                image_url,
+                headers={"User-Agent": "Mozilla/5.0"}
+            )
+            with urllib.request.urlopen(req, timeout=FETCH_TIMEOUT) as resp:
+                return resp.read()          # ← success, return immediately
+        except (urllib.error.URLError, OSError) as e:
+            last_error = e
+            if attempt < MAX_RETRIES:
+                time.sleep(RETRY_DELAY)     # wait then retry
+            # on last attempt fall through and raise below
+    raise last_error                        # all 3 attempts failed
 
 def upscale_image(image_data, scale=2):
     img   = Image.open(io.BytesIO(image_data))
@@ -29,7 +49,6 @@ def upscale_image(image_data, scale=2):
     out   = io.BytesIO()
     up.save(out, format="PNG", optimize=True)
     return out.getvalue(), new_w, new_h
-
 
 def add_watermark(image_data, text="AI Generated", position="bottom-right",
                   opacity=0.6, size="medium"):
@@ -50,7 +69,6 @@ def add_watermark(image_data, text="AI Generated", position="bottom-right",
             continue
     if font is None:
         font = ImageFont.load_default()
-
     layer = Image.new("RGBA", img.size, (0, 0, 0, 0))
     draw  = ImageDraw.Draw(layer)
     bbox  = draw.textbbox((0, 0), text, font=font)
