@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel – AI Image Generator</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #0d0d0d;
+            color: #fff;
+            font-family: 'Segoe UI', sans-serif;
+            min-height: 100vh;
+            padding: 24px;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 32px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid #2a2a2a;
+        }
+        .header h1 { font-size: 22px; color: #b91c4a; }
+        .btn {
+            padding: 8px 16px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+        }
+        .btn-danger { background: #7f1d1d; color: #fff; }
+        .btn-danger:hover { background: #991b1b; }
+        .btn-sm { padding: 4px 10px; font-size: 12px; border-radius: 6px; }
+        .btn-upgrade { background: #b91c4a; color: #fff; }
+        .btn-downgrade { background: #374151; color: #ccc; }
+        .btn-delete { background: #7f1d1d; color: #fff; }
+
+        /* Login screen */
+        #loginScreen {
+            max-width: 360px;
+            margin: 80px auto;
+            background: #1a1a1a;
+            border: 1px solid #2a2a2a;
+            border-radius: 16px;
+            padding: 32px;
+        }
+        #loginScreen h2 { margin-bottom: 24px; text-align: center; }
+        .form-group { margin-bottom: 16px; }
+        .form-group label { display: block; font-size: 13px; color: #aaa; margin-bottom: 6px; }
+        .form-group input {
+            width: 100%;
+            padding: 10px 14px;
+            background: #111;
+            border: 1px solid #333;
+            border-radius: 8px;
+            color: #fff;
+            font-size: 14px;
+        }
+        .btn-primary { background: #b91c4a; color: #fff; width: 100%; padding: 12px; font-size: 15px; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; }
+        .btn-primary:hover { background: #9a1740; }
+        .error-msg { color: #f87171; font-size: 13px; margin-top: 12px; text-align: center; display: none; }
+
+        /* Dashboard */
+        #dashboard { display: none; }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+        .stat-card {
+            background: #1a1a1a;
+            border: 1px solid #2a2a2a;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+        }
+        .stat-card .value { font-size: 32px; font-weight: 700; color: #b91c4a; }
+        .stat-card .label { font-size: 13px; color: #888; margin-top: 4px; }
+
+        .section-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: #ccc;
+        }
+        .table-wrap {
+            background: #1a1a1a;
+            border: 1px solid #2a2a2a;
+            border-radius: 12px;
+            overflow: hidden;
+            margin-bottom: 32px;
+        }
+        table { width: 100%; border-collapse: collapse; }
+        th {
+            background: #111;
+            padding: 12px 16px;
+            text-align: left;
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        td {
+            padding: 12px 16px;
+            font-size: 13px;
+            border-top: 1px solid #222;
+            vertical-align: middle;
+        }
+        .plan-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        .plan-pro { background: #7c3aed22; color: #a78bfa; border: 1px solid #7c3aed44; }
+        .plan-free { background: #1a1a1a; color: #666; border: 1px solid #333; }
+        .actions-cell { display: flex; gap: 6px; }
+        .loading { text-align: center; color: #555; padding: 40px; }
+    </style>
+</head>
+<body>
+
+<!-- LOGIN SCREEN -->
+<div id="loginScreen">
+    <h2>🔐 Admin Login</h2>
+    <div class="form-group">
+        <label>Username</label>
+        <input type="text" id="adminUser" placeholder="admin">
+    </div>
+    <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="adminPass" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <button class="btn-primary" onclick="doLogin()">Login</button>
+    <p class="error-msg" id="loginError">Wrong credentials</p>
+</div>
+
+<!-- DASHBOARD -->
+<div id="dashboard">
+    <div class="header">
+        <h1>✦ Admin Panel</h1>
+        <button class="btn btn-danger" onclick="doLogout()">Logout</button>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-grid" id="statsGrid">
+        <div class="loading">Loading stats...</div>
+    </div>
+
+    <!-- Users -->
+    <p class="section-title">All Users</p>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Username</th>
+                    <th>Plan</th>
+                    <th>Images</th>
+                    <th>Used Today</th>
+                    <th>Joined</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="usersTable">
+                <tr><td colspan="6" class="loading">Loading users...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    // ── Login ──────────────────────────────────────────────────────────
+    async function doLogin() {
+        const username = document.getElementById('adminUser').value.trim();
+        const password = document.getElementById('adminPass').value.trim();
+        const res = await fetch('/admin/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password })
+        });
+        if (res.ok) {
+            document.getElementById('loginScreen').style.display = 'none';
+            document.getElementById('dashboard').style.display = 'block';
+            loadStats();
+            loadUsers();
+        } else {
+            document.getElementById('loginError').style.display = 'block';
+        }
+    }
+
+    async function doLogout() {
+        await fetch('/admin/logout', { method: 'POST' });
+        location.reload();
+    }
+
+    // ── Stats ──────────────────────────────────────────────────────────
+    async function loadStats() {
+        const res  = await fetch('/admin/stats');
+        if (!res.ok) return;
+        const data = await res.json();
+        document.getElementById('statsGrid').innerHTML = `
+            <div class="stat-card"><div class="value">${data.today_total}</div><div class="label">Today's Images</div></div>
+            <div class="stat-card"><div class="value">${data.all_time}</div><div class="label">All Time</div></div>
+            <div class="stat-card"><div class="value">${data.total_users}</div><div class="label">Total Users</div></div>
+            <div class="stat-card"><div class="value">${data.pro_users}</div><div class="label">Pro Users</div></div>
+            <div class="stat-card"><div class="value">${data.free_users}</div><div class="label">Free Users</div></div>
+            <div class="stat-card"><div class="value">${data.top_style || '—'}</div><div class="label">Top Style</div></div>
+        `;
+    }
+
+    // ── Users ──────────────────────────────────────────────────────────
+    async function loadUsers() {
+        const res  = await fetch('/admin/users');
+        if (!res.ok) return;
+        const users = await res.json();
+        const tbody = document.getElementById('usersTable');
+        if (!users.length) {
+            tbody.innerHTML = '<tr><td colspan="6" class="loading">No users yet</td></tr>';
+            return;
+        }
+        tbody.innerHTML = users.map(u => `
+            <tr>
+                <td>${u.username}</td>
+                <td><span class="plan-badge plan-${u.plan}">${u.plan.toUpperCase()}</span></td>
+                <td>${u.image_count}</td>
+                <td>${u.used_today} / ${u.limit_today}</td>
+                <td>${u.joined || '—'}</td>
+                <td>
+                    <div class="actions-cell">
+                        ${u.plan === 'free'
+                            ? `<button class="btn btn-sm btn-upgrade" onclick="upgradeUser('${u.username}')">Upgrade</button>`
+                            : `<button class="btn btn-sm btn-downgrade" onclick="downgradeUser('${u.username}')">Downgrade</button>`
+                        }
+                        <button class="btn btn-sm btn-delete" onclick="deleteUser('${u.username}')">Delete</button>
+                    </div>
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    async function upgradeUser(username) {
+        if (!confirm(`Upgrade ${username} to Pro?`)) return;
+        await fetch(`/admin/user/${username}/upgrade`, { method: 'POST' });
+        loadUsers();
+    }
+
+    async function downgradeUser(username) {
+        if (!confirm(`Downgrade ${username} to Free?`)) return;
+        await fetch(`/admin/user/${username}/downgrade`, { method: 'POST' });
+        loadUsers();
+    }
+
+    async function deleteUser(username) {
+        if (!confirm(`DELETE user ${username}? This cannot be undone.`)) return;
+        await fetch(`/admin/user/${username}/delete`, { method: 'POST' });
+        loadUsers();
+    }
+</script>
+
+</body>
+</html>

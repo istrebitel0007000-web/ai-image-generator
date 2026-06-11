@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shared Image – AI Image Generator</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #0d0d0d;
+            color: #fff;
+            font-family: 'Segoe UI', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+        }
+        .card {
+            background: #1a1a1a;
+            border: 1px solid #2a2a2a;
+            border-radius: 16px;
+            max-width: 700px;
+            width: 100%;
+            overflow: hidden;
+        }
+        .card img {
+            width: 100%;
+            display: block;
+        }
+        .card-body {
+            padding: 24px;
+        }
+        .badge {
+            display: inline-block;
+            background: #b91c4a;
+            color: #fff;
+            font-size: 12px;
+            padding: 4px 10px;
+            border-radius: 20px;
+            margin-bottom: 12px;
+        }
+        .prompt {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            line-height: 1.5;
+            color: #f0f0f0;
+        }
+        .meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            font-size: 13px;
+            color: #888;
+            margin-bottom: 20px;
+        }
+        .meta span { display: flex; align-items: center; gap: 6px; }
+        .actions { display: flex; gap: 12px; flex-wrap: wrap; }
+        .btn {
+            padding: 10px 20px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .btn-primary {
+            background: #b91c4a;
+            color: #fff;
+        }
+        .btn-primary:hover { background: #9a1740; }
+        .btn-secondary {
+            background: #2a2a2a;
+            color: #ccc;
+        }
+        .btn-secondary:hover { background: #333; }
+        .site-link {
+            margin-top: 24px;
+            font-size: 13px;
+            color: #666;
+            text-align: center;
+        }
+        .site-link a { color: #b91c4a; text-decoration: none; }
+        .site-link a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <img src="{{ share.image_url }}" alt="AI Generated Image" onerror="this.style.display='none'">
+    <div class="card-body">
+        <span class="badge">✦ AI Generated</span>
+        <p class="prompt">"{{ share.prompt }}"</p>
+        <div class="meta">
+            <span>🎨 {{ share.style }}</span>
+            <span>👤 {{ share.created_by }}</span>
+            <span>📅 {{ share.created_at }}</span>
+            <span>👁 {{ share.views }} views</span>
+        </div>
+        <div class="actions">
+            <a href="{{ share.image_url }}" download class="btn btn-primary">
+                ⬇ Download Image
+            </a>
+            <a href="/" class="btn btn-secondary">
+                ✦ Create Your Own
+            </a>
+            <button onclick="copyLink()" class="btn btn-secondary" id="copyBtn">
+                🔗 Copy Link
+            </button>
+        </div>
+    </div>
+</div>
+
+<div class="site-link">
+    Generated with <a href="/">AI Image Generator</a>
+</div>
+
+<script>
+    function copyLink() {
+        navigator.clipboard.writeText(window.location.href).then(() => {
+            const btn = document.getElementById('copyBtn');
+            btn.textContent = '✓ Copied!';
+            setTimeout(() => { btn.textContent = '🔗 Copy Link'; }, 2000);
+        });
+    }
+</script>
+
+</body>
+</html>
