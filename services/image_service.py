@@ -1,4 +1,4 @@
-﻿import io
+import io
 import os
 import time
 import base64
@@ -9,7 +9,7 @@ import urllib.error
 from PIL import Image, ImageDraw, ImageFont, ImageEnhance
 
 GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', '')
-GEMINI_MODEL = 'gemini-2.0-flash-preview-image-generation'
+GEMINI_MODEL = 'gemini-2.5-flash-image'
 MAX_RETRIES = 3
 RETRY_DELAY = 5
 FETCH_TIMEOUT = 120
