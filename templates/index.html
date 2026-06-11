@@ -1380,7 +1380,7 @@ async function generateImage(){
 
   for(var attempt=0;attempt<=MAX_RETRIES;attempt++){
     try{
-      var r=await fetch('/generate',{
+      var r=await fetch('/api/v1/generate',{
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body:JSON.stringify({prompt:prompt,style:selectedStyle,size:selectedSize,negative_prompt:negative})
@@ -1502,7 +1502,7 @@ async function toggleFav(){
   if(!currentResult)return;
   if(!currentUser){openModal();return;}
   try{
-    var r=await fetch('/favorites/toggle',{
+    var r=await fetch('/api/v1/favorite',{
       method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({filename:currentResult.filename,entry:currentResult})
     });
@@ -1528,7 +1528,7 @@ async function toggleShare(){
   var row=document.getElementById('shareRow');
   if(shareVisible){row.classList.remove('visible');shareVisible=false;return;}
   try{
-    var r=await fetch('/share',{
+    var r=await fetch('/api/v1/share',{
       method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({filename:currentResult.filename,image_url:currentResult.image_url,prompt:currentResult.original_prompt,style:currentResult.style_key})
     });
@@ -1547,7 +1547,7 @@ async function upscaleImg(){
   if(!currentResult)return;
   showToast('Upscaling...','success');
   try{
-    var r=await fetch('/upscale',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({filename:currentResult.filename})});
+    var r=await fetch('/api/v1/upscale',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({filename:currentResult.filename})});
     var d=await r.json();
     if(d.error){showToast(d.error,'error');return;}
     showToast('Upscaled to '+d.new_size+'!','success');
@@ -1558,7 +1558,7 @@ async function upscaleImg(){
 async function addWatermark(){
   if(!currentResult)return;
   try{
-    var r=await fetch('/watermark',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({filename:currentResult.filename,text:'AI Generated'})});
+    var r=await fetch('/api/v1/watermark',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({filename:currentResult.filename,text:'AI Generated'})});
     var d=await r.json();
     if(d.error){showToast(d.error,'error');return;}
     showToast('Watermark added!','success');
@@ -1575,15 +1575,15 @@ function regenSeed(){
    HISTORY / FAVORITES / DOWNLOADS
 ═══════════════════════════════════════════════ */
 async function loadHistory(){
-  try{var r=await fetch('/history');var d=await r.json();renderGrid('historyGrid','historyEmpty',d.history||[]);}
+  try{var r=await fetch('/api/v1/history');var d=await r.json();renderGrid('historyGrid','historyEmpty',d.history||[]);}
   catch(e){document.getElementById('historyEmpty').style.display='flex';}
 }
 async function loadFavorites(){
-  try{var r=await fetch('/favorites');var d=await r.json();renderGrid('favGrid','favEmpty',d.favorites||[]);}
+  try{var r=await fetch('/api/v1/favorites');var d=await r.json();renderGrid('favGrid','favEmpty',d.favorites||[]);}
   catch(e){document.getElementById('favEmpty').style.display='flex';}
 }
 async function loadDownloads(){
-  try{var r=await fetch('/downloads');var d=await r.json();renderGrid('dlGrid','dlEmpty',d.downloads||[]);}
+  try{var r=await fetch('/api/v1/downloads');var d=await r.json();renderGrid('dlGrid','dlEmpty',d.downloads||[]);}
   catch(e){document.getElementById('dlEmpty').style.display='flex';}
 }
 
@@ -1643,7 +1643,7 @@ async function loadProfile(){
 
   var apiKeysHtml='<div class="empty-state" style="padding:20px 0"><p>No API keys yet.</p></div>';
   try{
-    var r=await fetch('/api/keys');
+    var r=await fetch('/api/v1/keys');
     var dk=await r.json();
     var keys=dk.keys||{};
     var keyArr=Object.keys(keys);
@@ -1697,7 +1697,7 @@ async function createKey(){
   var label=labelEl?labelEl.value.trim():'';
   if(!label)label='My App';
   try{
-    var r=await fetch('/api/keys',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({label:label})});
+    var r=await fetch('/api/v1/keys',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({label:label})});
     var d=await r.json();
     var kv=d.key||d.api_key||'';
     showToast('Key created: '+(kv?kv.substring(0,20)+'...':'done'),'success');
@@ -1707,7 +1707,7 @@ async function createKey(){
 
 async function revokeKey(key){
   try{
-    await fetch('/api/keys/'+encodeURIComponent(key),{method:'DELETE'});
+    await fetch('/api/v1/keys/'+encodeURIComponent(key),{method:'DELETE'});
     showToast('Key revoked','success');
     loadProfile();
   }catch(e){showToast('Error','error');}
