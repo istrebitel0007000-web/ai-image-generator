@@ -37,7 +37,7 @@ def fetch_image_bytes(prompt_text):
             last_error = e
             if attempt < MAX_RETRIES:
                 time.sleep(RETRY_DELAY)
-    raise last_error or ValueError('Failed after all retries')
+    raise ValueError(f'Gemini error: {last_error}')
 
 def upscale_image(image_data, scale=2):
     img = Image.open(io.BytesIO(image_data))
