@@ -1,43 +1,88 @@
 import io
-import time                          # ← ADDED for retry sleep
+import os
+import time
+import base64
+import json
 import urllib.request
 import urllib.parse
-import urllib.error                  # ← ADDED for specific error catching
+import urllib.error
 from PIL import Image, ImageDraw, ImageFont, ImageEnhance
 
-# ── Retry config ───────────────────────────────────────────────────────
-MAX_RETRIES   = 3    # total attempts
-RETRY_DELAY   = 5    # seconds between attempts
-FETCH_TIMEOUT = 60   # seconds per attempt (same as before)
+# ── Gemini config ──────────────────────────────────────────────────────
+GEMINI_API_KEY  = os.getenv("GEMINI_API_KEY", "")
+GEMINI_MODEL    = "gemini-2.0-flash-exp"
 
+# ── Retry config ───────────────────────────────────────────────────────
+MAX_RETRIES   = 3
+RETRY_DELAY   = 5
+FETCH_TIMEOUT = 120
+
+# ── Keep build_image_url for backwards compatibility ───────────────────
 def build_image_url(prompt, w, h, seed):
-    encoded = urllib.parse.quote(prompt)
-    return (
-        f"https://image.pollinations.ai/prompt/{encoded}"
-        f"?width={w}&height={h}&seed={seed}&nologo=true&enhance=true"
+    encoded = urllib.parse.quote(prompt[:100])
+    return f"https://generativelanguage.googleapis.com/placeholder/{encoded}"
+
+
+def fetch_image_bytes(prompt_text):
+    """
+    Generate image using Gemini 2.0 Flash API.
+    Returns raw PNG bytes.
+    Retries up to MAX_RETRIES times on failure.
+    """
+    if not GEMINI_API_KEY:
+        raise ValueError("GEMINI_API_KEY environment variable is not set")
+
+    api_url = (
+        f"https://generativelanguage.googleapis.com/v1beta/models/"
+        f"{GEMINI_MODEL}:generateContent?key={GEMINI_API_KEY}"
     )
 
-def fetch_image_bytes(image_url):
-    """
-    Fetch image bytes from Pollinations with automatic retry.
-    Tries up to MAX_RETRIES times with RETRY_DELAY seconds between each.
-    Raises the last exception if all attempts fail.
-    """
+    payload = json.dumps({
+        "contents": [{
+            "parts": [{"text": prompt_text}]
+        }],
+        "generationConfig": {
+            "responseModalities": ["IMAGE", "TEXT"],
+            "responseMimeType": "image/png",
+        }
+    }).encode("utf-8")
+
     last_error = None
     for attempt in range(1, MAX_RETRIES + 1):
         try:
             req = urllib.request.Request(
-                image_url,
-                headers={"User-Agent": "Mozilla/5.0"}
+                api_url,
+                data    = payload,
+                headers = {
+                    "Content-Type": "application/json",
+                    "User-Agent":   "Mozilla/5.0",
+                },
+                method = "POST"
             )
             with urllib.request.urlopen(req, timeout=FETCH_TIMEOUT) as resp:
-                return resp.read()          # ← success, return immediately
+                raw  = resp.read()
+                data = json.loads(raw.decode("utf-8"))
+
+            # Extract base64 image from Gemini response
+            parts = data["candidates"][0]["content"]["parts"]
+            for part in parts:
+                if "inlineData" in part:
+                    b64 = part["inlineData"]["data"]
+                    return base64.b64decode(b64)
+
+            raise ValueError("Gemini returned no image in response")
+
         except (urllib.error.URLError, OSError) as e:
             last_error = e
             if attempt < MAX_RETRIES:
-                time.sleep(RETRY_DELAY)     # wait then retry
-            # on last attempt fall through and raise below
-    raise last_error                        # all 3 attempts failed
+                time.sleep(RETRY_DELAY)
+        except (KeyError, IndexError, json.JSONDecodeError, ValueError) as e:
+            last_error = e
+            if attempt < MAX_RETRIES:
+                time.sleep(RETRY_DELAY)
+
+    raise last_error or ValueError("Image generation failed after all retries")
+
 
 def upscale_image(image_data, scale=2):
     img   = Image.open(io.BytesIO(image_data))
@@ -49,6 +94,7 @@ def upscale_image(image_data, scale=2):
     out   = io.BytesIO()
     up.save(out, format="PNG", optimize=True)
     return out.getvalue(), new_w, new_h
+
 
 def add_watermark(image_data, text="AI Generated", position="bottom-right",
                   opacity=0.6, size="medium"):

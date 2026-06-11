@@ -1,7 +1,7 @@
 import re
 import random
 import datetime
-import urllib.error                  # ← ADDED for specific error catching
+import urllib.error
 from flask import request as flask_request
 from config import OUTPUT_DIR
 from models.data import STYLES, SIZES
@@ -12,7 +12,7 @@ from services.history_service import add_user_history, add_guest_history, is_use
 
 def generate_image(prompt, style_key, size_key, negative, username):
     """
-    Core image generation.
+    Core image generation using Gemini API.
     Returns (result_dict, error_str, http_code).
     """
     if not prompt:
@@ -31,21 +31,20 @@ def generate_image(prompt, style_key, size_key, negative, username):
     expanded_prompt = expand_prompt(prompt, detected_lang)
     full_prompt     = f"{expanded_prompt}, {style['suffix']}"
     if negative:
-        full_prompt += f" --no {negative}"
+        full_prompt += f". Do not include: {negative}"
 
     seed      = random.randint(1, 999_999_999)
-    image_url = build_image_url(full_prompt, size["w"], size["h"], seed)
 
-    # ── Network call — fetch_image_bytes handles retries internally ──
+    # ── Gemini: pass the full prompt text (not a URL) ──────────────────
     try:
-        image_data = fetch_image_bytes(image_url)
+        image_data = fetch_image_bytes(full_prompt)
     except urllib.error.URLError as e:
-        # Connection refused, DNS failure, HTTP error, timeout
         reason = str(e.reason) if hasattr(e, "reason") else str(e)
         return None, f"Image service unavailable after {MAX_RETRIES} attempts. Please try again shortly. ({reason[:80]})", 503
     except OSError as e:
-        # Low-level socket / OS timeout
         return None, f"Connection timed out after {MAX_RETRIES} attempts. Please try again shortly.", 503
+    except ValueError as e:
+        return None, f"Image generation failed: {str(e)[:200]}", 500
     except Exception as e:
         return None, f"Generation failed: {str(e)[:200]}", 500
 
@@ -54,9 +53,13 @@ def generate_image(prompt, style_key, size_key, negative, username):
         return None, "Image generation failed — empty response. Please try again.", 500
 
     # ── Save file ──────────────────────────────────────────────────────
-    slug     = re.sub(r"[^\w]", "_", prompt[:30]).strip("_").lower() or "image"
-    filename = f"{slug}_{seed}.png"
-    (OUTPUT_DIR / filename).write_bytes(image_data)
+    slug      = re.sub(r"[^\w]", "_", prompt[:30]).strip("_").lower() or "image"
+    filename  = f"{slug}_{seed}.png"
+    filepath  = OUTPUT_DIR / filename
+    filepath.write_bytes(image_data)
+
+    # ── Build a local serve URL for the image ─────────────────────────
+    image_url = f"/api/v1/image/{filename}"
 
     ts    = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
     entry = {
@@ -72,7 +75,7 @@ def generate_image(prompt, style_key, size_key, negative, username):
         "language":        detected_lang,
     }
 
-    # ── History & stats (100% unchanged) ──────────────────────────────
+    # ── History & stats (unchanged) ────────────────────────────────────
     if username:
         increment_user_daily_count(username)
         add_user_history(username, entry)
