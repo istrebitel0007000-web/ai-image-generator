@@ -6,6 +6,8 @@ import json
 import urllib.request
 import urllib.parse
 import urllib.error
+from dotenv import load_dotenv
+load_dotenv()
 from PIL import Image, ImageDraw, ImageFont, ImageEnhance
 
 GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', '')
