@@ -12,7 +12,7 @@ from services.history_service import add_user_history, add_guest_history, is_use
 
 def generate_image(prompt, style_key, size_key, negative, username):
     """
-    Core image generation using Gemini API.
+    Core image generation using the Grok API.
     Returns (result_dict, error_str, http_code).
     """
     if not prompt:
@@ -35,9 +35,9 @@ def generate_image(prompt, style_key, size_key, negative, username):
 
     seed      = random.randint(1, 999_999_999)
 
-    # ── Gemini: pass the full prompt text (not a URL) ──────────────────
+    # ── Grok: pass the full prompt text + size_key (for aspect ratio) ──
     try:
-        image_data = fetch_image_bytes(full_prompt)
+        image_data = fetch_image_bytes(full_prompt, size_key)
     except urllib.error.URLError as e:
         reason = str(e.reason) if hasattr(e, "reason") else str(e)
         return None, f"Image service unavailable after {MAX_RETRIES} attempts. Please try again shortly. ({reason[:80]})", 503
